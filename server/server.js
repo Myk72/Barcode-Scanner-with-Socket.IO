@@ -1,45 +1,47 @@
-const express = require("express");
-const { createServer } = require("http");
-const { createServer: createHttpsServer } = require("https"); // Added
-const { Server } = require("socket.io");
-const cors = require("cors");
-const fs = require("fs"); // For SSL certificates
+import express from "express";
+import { createServer } from "http";
+import { createServer as createHttpsServer } from "https";
+import cors from "cors";
+import fs from "fs";
+import { Server } from "socket.io";
 
 const app = express();
 app.use(cors());
 
-// Create both HTTP and HTTPS servers
 const httpServer = createServer(app);
-const httpsServer = createHttpsServer({
-  key: fs.readFileSync("key.pem"), // SSL key
-  cert: fs.readFileSync("cert.pem") // SSL certificate
-}, app);
+const httpsServer = createHttpsServer(
+  {
+    key: fs.readFileSync("../key.pem"),
+    cert: fs.readFileSync("../cert.pem"),
+  },
+  app
+);
 
-// Socket.IO setup
 const io = new Server({
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
-// Attach to both servers
+const scannedCodes = [];
+
 io.attach(httpServer);
 io.attach(httpsServer);
 
-// Store scanned codes
-const scannedCodes = [];
-
 io.on("connection", (socket) => {
-  console.log("Client connected via", socket.conn.secure ? "HTTPS" : "HTTP");
+  console.log(
+    socket.handshake.headers.host.endsWith("3001")
+      ? "HTTP (PC)"
+      : "HTTPS (Mobile)"
+  );
 
-  // Existing event handlers...
   socket.on("register-display", () => {
     socket.emit("initial-codes", scannedCodes);
   });
 
   socket.on("scan", (code) => {
-    scannedCodes.unshift(code);
+    scannedCodes = [code, ...scannedCodes];
     io.emit("scanned-code", code);
   });
 
@@ -48,7 +50,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start both servers
 const HTTP_PORT = 3001;
 const HTTPS_PORT = 3002;
 
