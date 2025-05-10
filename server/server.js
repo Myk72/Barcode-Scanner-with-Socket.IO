@@ -24,7 +24,7 @@ const io = new Server({
   },
 });
 
-const scannedCodes = [];
+let scannedCodes = [];
 
 io.attach(httpServer);
 io.attach(httpsServer);
